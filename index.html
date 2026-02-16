@@ -2,163 +2,104 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Редактор раскраски v2.0</title>
+<title>Color by Number Builder Pro</title>
 <style>
-  :root{
-    --text:#eef3ff; --muted:rgba(238,243,255,.72);
-    --ok:#28d7a7; --bad:#ff4d6d; --line:rgba(255,255,255,.12);
-    --primary:#7aa6ff;
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%; margin:0; color:var(--text); font-family:system-ui,-apple-system,sans-serif; background:#0b1020;}
-  .app{height:100vh; display:grid; grid-template-columns:400px 1fr; gap:0;}
+  :root { --bg: #0f172a; --panel: #1e293b; --text: #f1f5f9; --primary: #38bdf8; --accent: #c084fc; }
+  body { margin: 0; font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: grid; grid-template-columns: 400px 1fr; }
   
-  /* Левая панель */
-  .left{background:#111827; border-right:1px solid var(--line); display:flex; flex-direction:column; overflow:hidden;}
-  .head{padding:20px; border-bottom:1px solid var(--line); background:rgba(0,0,0,0.2)}
-  .title{font-weight:900; font-size:20px; color:var(--ok)}
-  .scroll{padding:20px; overflow-y:auto; flex:1;}
+  /* Панель управления */
+  .sidebar { background: var(--panel); border-right: 1px solid #334155; display: flex; flex-direction: column; overflow: hidden; }
+  .header { padding: 20px; background: rgba(0,0,0,0.2); border-bottom: 1px solid #334155; }
+  .scroll { padding: 20px; overflow-y: auto; flex: 1; }
   
-  .sec{margin-bottom:20px; padding:15px; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,0.03)}
-  .sec h3{margin:0 0 12px; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted)}
+  .section { margin-bottom: 20px; padding: 15px; background: #0f172a; border-radius: 12px; border: 1px solid #334155; }
+  h3 { margin: 0 0 10px; font-size: 11px; text-transform: uppercase; color: var(--primary); letter-spacing: 1px; }
   
-  label{display:block; margin:10px 0 5px; font-size:12px; color:var(--muted)}
-  input, textarea, select{
-    width:100%; padding:10px; border-radius:8px; border:1px solid var(--line);
-    background:#050817; color:#fff; outline:none; font-size:14px;
-  }
+  input, textarea, select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: #fff; margin-bottom: 10px; outline: none; }
+  .btn { width: 100%; padding: 12px; border-radius: 8px; border: 0; cursor: pointer; font-weight: bold; transition: 0.2s; background: var(--primary); color: #000; margin-bottom: 5px; }
+  .btn:hover { filter: brightness(1.2); }
+  .btn.sec { background: #475569; color: #fff; }
   
-  .btnRow{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
-  .btn{
-    flex:1; border:0; cursor:pointer; padding:10px; border-radius:8px;
-    font-weight:bold; background:var(--ok); color:#000; transition:0.2s;
-  }
-  .btn:hover{filter:brightness(1.1)}
-  .btn.secondary{background:var(--line); color:#fff}
-  .btn.danger{background:var(--bad); color:#fff}
+  /* Холст */
+  .canvas-area { display: flex; align-items: center; justify-content: center; background: #020617; position: relative; padding: 40px; }
+  .frame { position: relative; line-height: 0; transition: 0.3s; }
+  #mainImg { max-width: 100%; max-height: 80vh; display: block; pointer-events: none; }
+  #mainSvg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; cursor: crosshair; }
   
-  /* Правая панель */
-  .right{display:grid; grid-template-rows:1fr 250px; background:#050817;}
-  .stage{display:flex; align-items:center; justify-content:center; padding:20px; position:relative;}
-  .frame{
-    position:relative; max-width:100%; max-height:100%; 
-    box-shadow:0 0 40px rgba(0,0,0,0.5); background:#111; line-height:0;
-  }
-  #mainImg{max-width:100%; max-height:70vh; display:block; pointer-events:none;}
-  #mainSvg{position:absolute; top:0; left:0; width:100%; height:100%; cursor:crosshair;}
-  
-  .preview-area{border-top:1px solid var(--line); background:#0b1020; padding:10px;}
-  iframe{width:100%; height:100%; border:0; border-radius:10px; background:#fff;}
-  
-  .list-item{
-    padding:8px; background:rgba(0,0,0,0.2); border:1px solid var(--line); 
-    border-radius:6px; margin-bottom:5px; font-size:12px; display:flex; justify-content:space-between;
-  }
-  .toast{
-    position:fixed; top:20px; right:20px; padding:12px 20px; 
-    background:var(--ok); color:#000; border-radius:8px; font-weight:bold;
-    transform:translateY(-100px); transition:0.3s; z-index:9999;
-  }
-  .toast.show{transform:translateY(0);}
+  .list-item { background: #1e293b; padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 13px; border: 1px solid #334155; }
+  .color-row { display: flex; gap: 10px; align-items: center; }
+  input[type="color"] { width: 50px; height: 40px; padding: 2px; }
 </style>
 </head>
 <body>
 
-<div id="toast" class="toast">Готово!</div>
-
-<div class="app">
-  <div class="left">
-    <div class="head">
-      <div class="title">COLOR BY NUMBER BUILDER</div>
-      <div style="font-size:11px; color:var(--muted)">v2.0 • Специально для Genially</div>
+<div class="sidebar">
+  <div class="header">
+    <div style="font-weight:900; font-size:18px;">GENIALLY PAINT PRO</div>
+    <div style="font-size:11px; opacity:0.6">Создание раскраски с кликом по номерам</div>
+  </div>
+  
+  <div class="scroll">
+    <div class="section">
+      <h3>1. Картинка и стиль</h3>
+      <input type="file" id="fileInp" accept="image/*">
+      <label style="font-size:12px; display:block; margin-bottom:5px;">Цвет неоновой рамки:</label>
+      <input type="color" id="glowColor" value="#38bdf8">
     </div>
-    
-    <div class="scroll">
-      <div class="sec">
-        <h3>1. Картинка</h3>
-        <input type="file" id="fileInp" accept="image/*">
-        <label>Или ссылка:</label>
-        <input type="text" id="urlInp" placeholder="https://...">
-        <div class="btnRow">
-          <button class="btn" onclick="loadByUrl()">Загрузить по ссылке</button>
-        </div>
-      </div>
 
-      <div class="sec">
-        <h3>2. Обводка областей</h3>
-        <div style="font-size:12px; margin-bottom:10px">Кликайте по картинке, чтобы ставить точки.</div>
-        <div class="btnRow">
-          <button class="btn secondary" onclick="undoPoint()">Шаг назад</button>
-          <button class="btn danger" onclick="clearPoints()">Очистить</button>
-        </div>
-        <label>Ответ для этой области:</label>
-        <input type="text" id="ansInp" placeholder="Например: 12">
-        <button class="btn" style="margin-top:10px; width:100%" onclick="saveRegion()">СОХРАНИТЬ ОБЛАСТЬ</button>
-      </div>
+    <div class="section">
+      <h3>2. Обводка области</h3>
+      <div style="font-size:12px; opacity:0.7; margin-bottom:10px;">Кликайте по картинке, чтобы обвести деталь.</div>
+      <button class="btn sec" onclick="undoPoint()">Шаг назад</button>
+      
+      <label style="font-size:12px; margin-top:10px; display:block;">Задание (например: 2 + 3):</label>
+      <input type="text" id="taskInp" placeholder="Текст вопроса">
+      
+      <label style="font-size:12px; display:block;">Ответ (число):</label>
+      <input type="text" id="ansInp" placeholder="Номер на картинке">
+      
+      <label style="font-size:12px; display:block;">Цвет закраски:</label>
+      <input type="color" id="colorInp" value="#ff4d6d">
+      
+      <button class="btn" onclick="saveRegion()">СОХРАНИТЬ ОБЛАСТЬ</button>
+    </div>
 
-      <div class="sec">
-        <h3>3. Задания (Список)</h3>
-        <div id="regList"></div>
-      </div>
+    <div class="section">
+      <h3>3. Список заданий</h3>
+      <div id="regList"></div>
+    </div>
 
-      <div class="sec">
-        <h3>4. Экспорт</h3>
-        <button class="btn" style="background:var(--primary)" onclick="buildGame()">СГЕНЕРИРОВАТЬ ИГРУ</button>
-        <label>Код для Genially (Iframe):</label>
-        <textarea id="output" style="height:80px; font-size:10px" readonly></textarea>
-        <button class="btn secondary" style="width:100%; margin-top:5px" onclick="copyCode()">Копировать код</button>
-      </div>
+    <div class="section">
+      <h3>4. Экспорт</h3>
+      <button class="btn" style="background:var(--accent)" onclick="buildGame()">ПОЛУЧИТЬ КОД ДЛЯ GENIALLY</button>
+      <textarea id="output" placeholder="Тут появится код..." readonly></textarea>
     </div>
   </div>
+</div>
 
-  <div class="right">
-    <div class="stage">
-      <div class="frame">
-        <img id="mainImg" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
-        <svg id="mainSvg" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
-      </div>
-    </div>
-    <div class="preview-area">
-      <iframe id="preview"></iframe>
-    </div>
+<div class="canvas-area">
+  <div class="frame" id="previewFrame">
+    <img id="mainImg" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
+    <svg id="mainSvg" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
   </div>
 </div>
 
 <script>
   let points = [];
   let regions = [];
-  let currentImgData = "";
+  let currentImg = "";
 
-  const svg = document.getElementById('mainSvg');
-  const img = document.getElementById('mainImg');
-
-  // Загрузка файла с ПК
-  document.getElementById('fileInp').onchange = function(e) {
+  document.getElementById('fileInp').onchange = (e) => {
     const reader = new FileReader();
-    reader.onload = function(event) {
-      setImg(event.target.result);
+    reader.onload = (ev) => { 
+      document.getElementById('mainImg').src = ev.target.result;
+      currentImg = ev.target.result;
     };
     reader.readAsDataURL(e.target.files[0]);
   };
 
-  function loadByUrl() {
-    const url = document.getElementById('urlInp').value;
-    if(url) setImg(url);
-  }
-
-  function setImg(src) {
-    img.src = src;
-    currentImgData = src;
-    regions = [];
-    points = [];
-    updateUI();
-    showToast("Картинка загружена");
-  }
-
-  // Рисование
-  svg.onclick = function(e) {
-    const rect = svg.getBoundingClientRect();
+  document.getElementById('mainSvg').onclick = (e) => {
+    const rect = e.target.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 1000;
     const y = ((e.clientY - rect.top) / rect.height) * 1000;
     points.push({x, y});
@@ -167,147 +108,136 @@
 
   function draw() {
     let h = '';
-    // Отрисовка текущих точек
     if(points.length > 0) {
       const path = points.map(p => `${p.x},${p.y}`).join(' ');
-      h += `<polyline points="${path}" fill="none" stroke="#28d7a7" stroke-width="3" />`;
-      points.forEach(p => h += `<circle cx="${p.x}" cy="${p.y}" r="5" fill="#fff" />`);
+      h += `<polyline points="${path}" fill="none" stroke="#38bdf8" stroke-width="3" />`;
+      points.forEach(p => h += `<circle cx="${p.x}" cy="${p.y}" r="6" fill="#fff" />`);
     }
-    // Отрисовка сохраненных областей
     regions.forEach(r => {
       const path = r.points.map(p => `${p.x},${p.y}`).join(' ');
-      h += `<polygon points="${path}" fill="rgba(40,215,167,0.3)" stroke="#28d7a7" stroke-width="1" />`;
+      h += `<polygon points="${path}" fill="${r.color}66" stroke="${r.color}" stroke-width="1" />`;
     });
-    svg.innerHTML = h;
+    document.getElementById('mainSvg').innerHTML = h;
   }
 
   function undoPoint() { points.pop(); draw(); }
-  function clearPoints() { points = []; draw(); }
 
   function saveRegion() {
+    const task = document.getElementById('taskInp').value;
     const ans = document.getElementById('ansInp').value;
-    if(!ans || points.length < 3) return alert("Нужен ответ и хотя бы 3 точки!");
+    const color = document.getElementById('colorInp').value;
     
-    regions.push({
-      answer: ans,
-      points: [...points],
-      color: "#" + Math.floor(Math.random()*16777215).toString(16) // случайный цвет
-    });
+    if(!task || !ans || points.length < 3) return alert("Заполните всё и обведите область!");
     
+    regions.push({ task, answer: ans, color, points: [...points] });
     points = [];
+    document.getElementById('taskInp').value = "";
     document.getElementById('ansInp').value = "";
-    updateUI();
+    updateList();
     draw();
-    showToast("Область сохранена");
   }
 
-  function updateUI() {
-    const list = document.getElementById('regList');
-    list.innerHTML = regions.map((r, i) => `
+  function updateList() {
+    const l = document.getElementById('regList');
+    l.innerHTML = regions.map((r, i) => `
       <div class="list-item">
-        <span>Область #${i+1} (Ответ: ${r.answer})</span>
-        <button onclick="regions.splice(${i},1); updateUI(); draw();" style="border:0; background:none; color:red; cursor:pointer">✖</button>
+        <b>${r.task} = ${r.answer}</b>
+        <div style="width:20px; height:20px; background:${r.color}; display:inline-block; border-radius:4px; vertical-align:middle; margin-left:10px"></div>
+        <button onclick="regions.splice(${i},1); updateList(); draw();" style="float:right; border:0; background:none; color:red; cursor:pointer">✖</button>
       </div>
     `).join('');
   }
 
-  function showToast(m) {
-    const t = document.getElementById('toast');
-    t.textContent = m;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2000);
-  }
-
   function buildGame() {
-    if(!currentImgData || regions.length === 0) return alert("Сначала загрузите фото и создайте области!");
+    const glow = document.getElementById('glowColor').value;
+    const gameData = JSON.stringify({ regions, glow });
     
-    const gameData = {
-      img: currentImgData,
-      regions: regions
-    };
-
-    // Генерируем полный HTML игры
-    const fullHtml = `
+    const finalHtml = `
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <style>
-    body { margin: 0; background: #eee; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-    #ui { padding: 20px; background: #fff; display: flex; gap: 20px; align-items: center; border-bottom: 2px solid #ddd; }
-    #container { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; padding: 20px; background: #333; }
-    .frame { position: relative; background: #000; line-height: 0; }
-    img { max-width: 100%; max-height: 70vh; display: block; }
-    svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-    .task { font-size: 24px; font-weight: bold; }
-    input { font-size: 20px; padding: 5px; width: 100px; }
-    .btn { padding: 10px 20px; background: #28d7a7; border: 0; border-radius: 5px; cursor: pointer; font-weight: bold; }
-  </style>
+<meta charset="utf-8">
+<style>
+  body { margin: 0; background: transparent; font-family: sans-serif; height: 100vh; display: grid; grid-template-columns: 35% 65%; color: #fff; overflow: hidden; }
+  .tasks-side { padding: 40px; display: flex; flex-direction: column; justify-content: center; }
+  .task-card { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2); margin-bottom: 20px; display: none; animation: fadeIn 0.5s forwards; }
+  .task-card.active { display: block; }
+  .image-side { display: flex; align-items: center; justify-content: center; padding: 40px; }
+  .frame { position: relative; line-height: 0; border-radius: 15px; box-shadow: 0 0 20px ${glow}, 0 0 40px ${glow}44; overflow: hidden; border: 2px solid ${glow}; }
+  img { max-width: 100%; max-height: 80vh; display: block; }
+  svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  .num-label { font-size: 24px; font-weight: 900; fill: #000; stroke: #fff; stroke-width: 1px; paint-order: stroke; cursor: pointer; transition: 0.2s; }
+  .num-label:hover { transform: scale(1.2); filter: drop-shadow(0 0 5px #fff); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+</style>
 </head>
 <body>
-  <div id="ui">
-    <div class="task" id="q">Решите примеры, чтобы раскрасить!</div>
-    <input type="text" id="ans" placeholder="Ответ...">
-    <button class="btn" onclick="check()">ПРОВЕРИТЬ</button>
-    <div id="stat"></div>
-  </div>
-  <div id="container">
+  <div class="tasks-side" id="tasks"></div>
+  <div class="image-side">
     <div class="frame">
-      <img src="${gameData.img}">
+      <img src="${currentImg}">
       <svg id="gameSvg" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
     </div>
   </div>
-
   <script>
-    const data = ${JSON.stringify(gameData.regions)};
-    let solved = [];
+    const data = ${gameData};
+    let currentTaskIdx = 0;
+    const solved = [];
 
-    function render() {
-      let h = '';
-      data.forEach((r, i) => {
-        const isSolved = solved.includes(r.answer);
+    function init() {
+      renderTasks();
+      renderImage();
+    }
+
+    function renderTasks() {
+      const container = document.getElementById('tasks');
+      container.innerHTML = data.regions.map((r, i) => \`
+        <div class="task-card \${i === currentTaskIdx ? 'active' : ''}" id="t\${i}">
+          <h2 style="margin:0; opacity:0.6; font-size:14px">ЗАДАНИЕ \${i+1}</h2>
+          <div style="font-size:32px; font-weight:bold; margin-top:10px">\${r.task}</div>
+        </div>
+      \`).join('');
+    }
+
+    function renderImage() {
+      const svg = document.getElementById('gameSvg');
+      svg.innerHTML = data.regions.map((r, i) => {
+        const isSolved = solved.includes(i);
+        const center = getCenter(r.points);
         const path = r.points.map(p => p.x + ',' + p.y).join(' ');
-        h += '<polygon points="' + path + '" fill="' + (isSolved ? r.color : 'rgba(255,255,255,0.8)') + '" stroke="#999" stroke-width="1" />';
-      });
-      document.getElementById('gameSvg').innerHTML = h;
+        
+        return \`
+          <polygon points="\${path}" fill="\${isSolved ? r.color : 'rgba(255,255,255,0.7)'}" stroke="rgba(0,0,0,0.1)" />
+          \${!isSolved ? \`<text x="\${center.x}" y="\${center.y}" class="num-label" text-anchor="middle" dominant-baseline="middle" onclick="clickPart(\${i})">\${r.answer}</text>\` : ''}
+        \`;
+      }).join('');
     }
 
-    function check() {
-      const val = document.getElementById('ans').value.trim();
-      let found = false;
-      data.forEach(r => {
-        if(r.answer === val) {
-          if(!solved.includes(val)) solved.push(val);
-          found = true;
-        }
-      });
-      if(found) {
-        document.getElementById('ans').value = "";
-        render();
-        if(solved.length === new Set(data.map(d=>d.answer)).size) alert("Ура! Все раскрашено!");
-      } else {
-        alert("Неправильно или такого номера нет!");
-      }
+    function getCenter(pts) {
+      let x = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+      let y = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+      return {x, y};
     }
-    render();
+
+    window.clickPart = (idx) => {
+      if(idx !== currentTaskIdx) return; // Можно нажать только текущее задание
+      solved.push(idx);
+      currentTaskIdx++;
+      if(currentTaskIdx >= data.regions.length) {
+         // Конец игры
+      }
+      renderTasks();
+      renderImage();
+    };
+    init();
   <\/script>
 </body>
 </html>`;
 
-    const encoded = btoa(unescape(encodeURIComponent(fullHtml)));
-    const embedCode = `<iframe srcdoc="${fullHtml.replace(/"/g, '&quot;').replace(/'/g, '&apos;')}" width="100%" height="600" style="border:0; border-radius:10px;" allowfullscreen></iframe>`;
-    
+    const blob = new Blob([finalHtml], {type: 'text/html'});
+    const embedCode = `<iframe srcdoc="${finalHtml.replace(/"/g, '&quot;')}" width="100%" height="600" style="border:0;" allowtransparent="true" allowfullscreen></iframe>`;
     document.getElementById('output').value = embedCode;
-    document.getElementById('preview').srcdoc = fullHtml;
-  }
-
-  function copyCode() {
-    const copyText = document.getElementById("output");
-    copyText.select();
-    document.execCommand("copy");
-    showToast("Код скопирован!");
   }
 </script>
-
 </body>
 </html>
