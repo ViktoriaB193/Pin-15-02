@@ -3,453 +3,311 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Редактор раскраски v2</title>
+<title>Редактор раскраски v2.0</title>
 <style>
   :root{
     --text:#eef3ff; --muted:rgba(238,243,255,.72);
     --ok:#28d7a7; --bad:#ff4d6d; --line:rgba(255,255,255,.12);
+    --primary:#7aa6ff;
   }
   *{box-sizing:border-box}
-  html,body{height:100%}
-  body{
-    margin:0; color:var(--text);
-    font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
-    background: radial-gradient(1200px 800px at 20% 10%, rgba(42,234,200,.18), transparent 50%),
-                radial-gradient(1200px 800px at 90% 90%, rgba(122,166,255,.22), transparent 45%),
-                linear-gradient(180deg, #050817, #0b1020 55%, #050817);
-    overflow:hidden;
+  html,body{height:100%; margin:0; color:var(--text); font-family:system-ui,-apple-system,sans-serif; background:#0b1020;}
+  .app{height:100vh; display:grid; grid-template-columns:400px 1fr; gap:0;}
+  
+  /* Левая панель */
+  .left{background:#111827; border-right:1px solid var(--line); display:flex; flex-direction:column; overflow:hidden;}
+  .head{padding:20px; border-bottom:1px solid var(--line); background:rgba(0,0,0,0.2)}
+  .title{font-weight:900; font-size:20px; color:var(--ok)}
+  .scroll{padding:20px; overflow-y:auto; flex:1;}
+  
+  .sec{margin-bottom:20px; padding:15px; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,0.03)}
+  .sec h3{margin:0 0 12px; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted)}
+  
+  label{display:block; margin:10px 0 5px; font-size:12px; color:var(--muted)}
+  input, textarea, select{
+    width:100%; padding:10px; border-radius:8px; border:1px solid var(--line);
+    background:#050817; color:#fff; outline:none; font-size:14px;
   }
-  .app{height:100%; display:grid; grid-template-columns:420px 1fr; gap:14px; padding:14px}
-  .card{
-    background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-    border:1px solid rgba(255,255,255,.08);
-    border-radius:18px;
-    box-shadow:0 20px 60px rgba(0,0,0,.35);
-    overflow:hidden; min-height:0;
-  }
-  .left{display:flex; flex-direction:column}
-  .head{padding:14px 14px 10px; border-bottom:1px solid rgba(255,255,255,.08); background:rgba(0,0,0,.12)}
-  .title{font-weight:900; font-size:18px}
-  .sub{margin-top:6px; font-size:12.5px; color:rgba(238,243,255,.75); line-height:1.35}
-  .scroll{padding:14px; overflow:auto; min-height:0}
-  .sec{margin-bottom:14px; padding:12px; border:1px solid rgba(255,255,255,.08); border-radius:14px; background:rgba(0,0,0,.12)}
-  .sec h3{margin:0 0 10px; font-size:12px; letter-spacing:.4px; text-transform:uppercase; color:rgba(238,243,255,.78)}
-  label{display:block; margin:10px 0 6px; font-size:12.5px; color:rgba(238,243,255,.78)}
-  input[type="text"], textarea, select{
-    width:100%; padding:10px 12px;
-    border-radius:12px; border:1px solid rgba(255,255,255,.12);
-    background:rgba(10,16,35,.65); color:var(--text); outline:none;
-  }
-  textarea{min-height:110px; resize:vertical}
-  input[type="text"]:focus, textarea:focus, select:focus{
-    border-color:rgba(122,166,255,.55); box-shadow:0 0 0 3px rgba(122,166,255,.16)
-  }
-  .btnRow{display:flex; flex-wrap:wrap; gap:10px; margin-top:10px}
+  
+  .btnRow{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
   .btn{
-    border:0; cursor:pointer; user-select:none;
-    padding:10px 12px; border-radius:12px;
-    font-weight:900;
-    background:linear-gradient(90deg, rgba(40,215,167,1), rgba(42,234,200,1));
-    color:#07101d;
-    box-shadow:0 10px 30px rgba(40,215,167,.18);
+    flex:1; border:0; cursor:pointer; padding:10px; border-radius:8px;
+    font-weight:bold; background:var(--ok); color:#000; transition:0.2s;
   }
-  .btn:active{transform:translateY(1px)}
-  .btn.secondary{
-    color:var(--text); background:rgba(255,255,255,.08);
-    border:1px solid rgba(255,255,255,.12); box-shadow:none;
-  }
-  .btn.danger{
-    color:#fff;
-    background:linear-gradient(90deg, rgba(255,77,109,1), rgba(255,110,133,1));
-    box-shadow:0 10px 30px rgba(255,77,109,.18);
-  }
-  .row{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-  .hint{margin-top:8px; font-size:12.5px; color:rgba(238,243,255,.68); line-height:1.35}
-  .pill{display:inline-flex; gap:8px; align-items:center; padding:7px 10px; border-radius:999px;
-        border:1px solid rgba(255,255,255,.12); background:rgba(0,0,0,.15);
-        color:rgba(238,243,255,.78); font-weight:800; font-size:12.5px}
-  .sw{width:14px; height:14px; border-radius:4px; border:1px solid rgba(255,255,255,.18)}
-  .list{display:flex; flex-direction:column; gap:8px; max-height:210px; overflow:auto; padding-right:4px}
-  .item{
-    display:flex; justify-content:space-between; align-items:center; gap:10px;
-    padding:10px; border-radius:12px;
-    border:1px solid rgba(255,255,255,.10); background:rgba(0,0,0,.10);
-    cursor:pointer;
-  }
-  .item.active{border-color:rgba(122,166,255,.55); box-shadow:0 0 0 3px rgba(122,166,255,.12)}
-  .name{font-weight:900; font-size:13px}
-  .meta{font-size:12px; color:rgba(238,243,255,.65); margin-top:2px}
-  .chip{font-size:11px; color:rgba(238,243,255,.7); padding:4px 8px; border-radius:999px;
-        border:1px solid rgba(255,255,255,.12); background:rgba(0,0,0,.12); max-width:120px;
-        overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  .colorRow{display:grid; grid-template-columns:84px 1fr; gap:10px; align-items:center}
-  input[type="color"]{
-    width:84px; height:40px; border-radius:12px;
-    border:1px solid rgba(255,255,255,.12); background:rgba(10,16,35,.65); padding:0;
-  }
-  .right{display:grid; grid-template-rows:1fr 280px; gap:14px; min-height:0}
-  .stage{padding:10px}
-  .stageBox{
-    height:100%; border-radius:18px; overflow:hidden;
-    background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,.08);
-    position:relative;
-    display:flex; align-items:center; justify-content:center;
-    padding:10px;
-  }
+  .btn:hover{filter:brightness(1.1)}
+  .btn.secondary{background:var(--line); color:#fff}
+  .btn.danger{background:var(--bad); color:#fff}
+  
+  /* Правая панель */
+  .right{display:grid; grid-template-rows:1fr 250px; background:#050817;}
+  .stage{display:flex; align-items:center; justify-content:center; padding:20px; position:relative;}
   .frame{
-    width:100%; max-width:980px; aspect-ratio:16/9;
-    border-radius:18px; overflow:hidden; position:relative;
-    box-shadow: 0 0 40px rgba(0,0,0,0.5);
-    border:1px solid rgba(255,255,255,.1);
+    position:relative; max-width:100%; max-height:100%; 
+    box-shadow:0 0 40px rgba(0,0,0,0.5); background:#111; line-height:0;
   }
-  .frame img{
-    position:absolute; inset:0; width:100%; height:100%;
-    object-fit:contain; pointer-events:none;
+  #mainImg{max-width:100%; max-height:70vh; display:block; pointer-events:none;}
+  #mainSvg{position:absolute; top:0; left:0; width:100%; height:100%; cursor:crosshair;}
+  
+  .preview-area{border-top:1px solid var(--line); background:#0b1020; padding:10px;}
+  iframe{width:100%; height:100%; border:0; border-radius:10px; background:#fff;}
+  
+  .list-item{
+    padding:8px; background:rgba(0,0,0,0.2); border:1px solid var(--line); 
+    border-radius:6px; margin-bottom:5px; font-size:12px; display:flex; justify-content:space-between;
   }
-  .frame svg{
-    position:absolute; inset:0; width:100%; height:100%;
-    touch-action:none; overflow:visible; cursor: crosshair;
-  }
-  .empty{
-    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
-    text-align:center; padding:30px;
-    color:rgba(238,243,255,.65); font-weight:900;
-    pointer-events:none;
-  }
-  .preview{padding:10px}
-  iframe{width:100%; height:100%; border:0; border-radius:18px; background: #050817;}
   .toast{
-    position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
-    background:rgba(8,12,24,.92); border:1px solid rgba(255,255,255,.12);
-    border-radius:14px; padding:10px 12px;
-    display:flex; align-items:center; gap:10px;
-    box-shadow:0 20px 60px rgba(0,0,0,.35);
-    opacity:0; pointer-events:none;
-    transition:0.2s; z-index:999999;
+    position:fixed; top:20px; right:20px; padding:12px 20px; 
+    background:var(--ok); color:#000; border-radius:8px; font-weight:bold;
+    transform:translateY(-100px); transition:0.3s; z-index:9999;
   }
-  .toast.show{opacity:1; transform:translateX(-50%) translateY(-2px)}
-  .dot{width:10px; height:10px; border-radius:999px; background:var(--ok)}
-  .dot.bad{background:var(--bad)}
+  .toast.show{transform:translateY(0);}
 </style>
 </head>
 <body>
-<div class="app">
-  <div class="card left">
-    <div class="head">
-      <div class="title">Редактор раскраски</div>
-      <div class="sub">Создай интерактивную игру: обведи области и привяжи их к правильным ответам.</div>
-    </div>
 
+<div id="toast" class="toast">Готово!</div>
+
+<div class="app">
+  <div class="left">
+    <div class="head">
+      <div class="title">COLOR BY NUMBER BUILDER</div>
+      <div style="font-size:11px; color:var(--muted)">v2.0 • Специально для Genially</div>
+    </div>
+    
     <div class="scroll">
       <div class="sec">
         <h3>1. Картинка</h3>
-        <select id="preset">
-          <option value="https://i.ibb.co/B5wHGTfh/d5e6afa4-eef8-4359-bc47-7ca55574f6ed.jpg">Котик с шариками</option>
-          <option value="__custom__">Своя ссылка или файл...</option>
-        </select>
-        <input id="imgUrl" type="text" placeholder="https://..." style="margin-top:8px"/>
-        <label>Загрузить файл</label>
-        <input id="filePick" type="file" accept="image/*"/>
+        <input type="file" id="fileInp" accept="image/*">
+        <label>Или ссылка:</label>
+        <input type="text" id="urlInp" placeholder="https://...">
         <div class="btnRow">
-          <button class="btn" id="btnLoad">Загрузить</button>
+          <button class="btn" onclick="loadByUrl()">Загрузить по ссылке</button>
         </div>
       </div>
 
       <div class="sec">
-        <h3>2. Обводка</h3>
+        <h3>2. Обводка областей</h3>
+        <div style="font-size:12px; margin-bottom:10px">Кликайте по картинке, чтобы ставить точки.</div>
         <div class="btnRow">
-          <button class="btn secondary" id="btnUndo">Шаг назад</button>
-          <button class="btn danger" id="btnClear">Сброс</button>
+          <button class="btn secondary" onclick="undoPoint()">Шаг назад</button>
+          <button class="btn danger" onclick="clearPoints()">Очистить</button>
         </div>
-        <div class="hint">Кликай по картинке, чтобы создать контур области.</div>
-        <div class="btnRow" style="margin-top:12px">
-           <button class="btn" id="btnSaveRegion">Создать область из точек</button>
-        </div>
+        <label>Ответ для этой области:</label>
+        <input type="text" id="ansInp" placeholder="Например: 12">
+        <button class="btn" style="margin-top:10px; width:100%" onclick="saveRegion()">СОХРАНИТЬ ОБЛАСТЬ</button>
       </div>
 
       <div class="sec">
-        <h3>3. Параметры области</h3>
-        <label>Ответ (число или текст)</label>
-        <input id="fldAnswer" type="text" placeholder="Например: 12"/>
-        <label>Цвет закраски</label>
-        <div class="colorRow">
-          <input id="fldColor" type="color" value="#28d7a7"/>
-          <input id="fldColorHex" type="text" value="#28d7a7"/>
-        </div>
-        <div class="btnRow">
-          <button class="btn" id="btnApply">Применить к выбранной</button>
-        </div>
+        <h3>3. Задания (Список)</h3>
+        <div id="regList"></div>
       </div>
 
       <div class="sec">
-        <h3>4. Список областей</h3>
-        <div class="list" id="regionsList"></div>
-        <div class="btnRow">
-          <button class="btn danger" id="btnDelete">Удалить</button>
-        </div>
-      </div>
-
-      <div class="sec">
-        <h3>5. Задания (Пример | Ответ)</h3>
-        <textarea id="tasksText">2 + 2 | 4 | #28d7a7
-5 * 3 | 15 | #ff4d6d
-10 - 5 | 5 | #7aa6ff</textarea>
-      </div>
-
-      <div class="sec">
-        <h3>6. Экспорт</h3>
-        <div class="btnRow">
-          <button class="btn" id="btnMakeEmbed">Сгенерировать код</button>
-          <button class="btn secondary" id="btnCopyEmbed">Копировать</button>
-        </div>
-        <textarea id="embedOut" readonly style="margin-top:10px; font-size:10px; height:60px"></textarea>
+        <h3>4. Экспорт</h3>
+        <button class="btn" style="background:var(--primary)" onclick="buildGame()">СГЕНЕРИРОВАТЬ ИГРУ</button>
+        <label>Код для Genially (Iframe):</label>
+        <textarea id="output" style="height:80px; font-size:10px" readonly></textarea>
+        <button class="btn secondary" style="width:100%; margin-top:5px" onclick="copyCode()">Копировать код</button>
       </div>
     </div>
   </div>
 
   <div class="right">
-    <div class="card stage">
-      <div class="stageBox">
-        <div class="frame" id="frame">
-          <img id="img" src="https://i.ibb.co/B5wHGTfh/d5e6afa4-eef8-4359-bc47-7ca55574f6ed.jpg" crossorigin="anonymous"/>
-          <svg id="svg" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
-          <div class="empty" id="empty" style="display:none">Загрузите изображение</div>
-        </div>
+    <div class="stage">
+      <div class="frame">
+        <img id="mainImg" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">
+        <svg id="mainSvg" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
       </div>
     </div>
-    <div class="card preview">
-      <iframe id="gamePreview"></iframe>
+    <div class="preview-area">
+      <iframe id="preview"></iframe>
     </div>
   </div>
 </div>
 
-<div class="toast" id="toast"><div class="dot" id="tdot"></div><div id="tmsg"></div></div>
-
 <script>
-(() => {
-  const $ = (id) => document.getElementById(id);
-  const state = {
-    imgLoaded: true,
-    points: [],
-    regions: [],
-    selectedId: null,
-    imageSrc: "https://i.ibb.co/B5wHGTfh/d5e6afa4-eef8-4359-bc47-7ca55574f6ed.jpg"
+  let points = [];
+  let regions = [];
+  let currentImgData = "";
+
+  const svg = document.getElementById('mainSvg');
+  const img = document.getElementById('mainImg');
+
+  // Загрузка файла с ПК
+  document.getElementById('fileInp').onchange = function(e) {
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      setImg(event.target.result);
+    };
+    reader.readAsDataURL(e.target.files[0]);
   };
 
-  const toast = (msg, kind="ok") => {
-    $("tmsg").textContent = msg;
-    $("tdot").className = "dot " + (kind === "bad" ? "bad" : "");
-    $("toast").classList.add("show");
-    setTimeout(() => $("toast").classList.remove("show"), 2000);
-  };
+  function loadByUrl() {
+    const url = document.getElementById('urlInp').value;
+    if(url) setImg(url);
+  }
 
-  const render = () => {
-    const svg = $("svg");
-    svg.innerHTML = "";
-    
-    // Отрисовка сохраненных областей
-    state.regions.forEach(r => {
-      const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-      const pts = r.points.map(p => `${p.x},${p.y}`).join(" ");
-      poly.setAttribute("points", pts);
-      poly.setAttribute("fill", r.id === state.selectedId ? r.color : "rgba(255,255,255,0.1)");
-      poly.setAttribute("stroke", r.id === state.selectedId ? "#fff" : "rgba(255,255,255,0.3)");
-      poly.setAttribute("stroke-width", "2");
-      poly.style.cursor = "pointer";
-      poly.onclick = (e) => { e.stopPropagation(); selectRegion(r.id); };
-      svg.appendChild(poly);
-    });
+  function setImg(src) {
+    img.src = src;
+    currentImgData = src;
+    regions = [];
+    points = [];
+    updateUI();
+    showToast("Картинка загружена");
+  }
 
-    // Отрисовка текущей линии обводки
-    if (state.points.length > 0) {
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-      line.setAttribute("points", state.points.map(p => `${p.x},${p.y}`).join(" "));
-      line.setAttribute("fill", "none");
-      line.setAttribute("stroke", "#28d7a7");
-      line.setAttribute("stroke-width", "3");
-      svg.appendChild(line);
-      
-      state.points.forEach(p => {
-        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-        c.setAttribute("cx", p.x); c.setAttribute("cy", p.y); c.setAttribute("r", "5");
-        c.setAttribute("fill", "#28d7a7");
-        svg.appendChild(c);
-      });
-    }
-    updateList();
-  };
-
-  const updateList = () => {
-    const list = $("regionsList");
-    list.innerHTML = "";
-    state.regions.forEach(r => {
-      const div = document.createElement("div");
-      div.className = "item " + (r.id === state.selectedId ? "active" : "");
-      div.innerHTML = `<span class="sw" style="background:${r.color}"></span> <span class="name">Ответ: ${r.answer}</span>`;
-      div.onclick = () => selectRegion(r.id);
-      list.appendChild(div);
-    });
-  };
-
-  const selectRegion = (id) => {
-    state.selectedId = id;
-    const r = state.regions.find(x => x.id === id);
-    if(r) {
-      $("fldAnswer").value = r.answer;
-      $("fldColor").value = r.color;
-      $("fldColorHex").value = r.color;
-    }
-    render();
-  };
-
-  $("svg").onmousedown = (e) => {
-    const rect = $("svg").getBoundingClientRect();
+  // Рисование
+  svg.onclick = function(e) {
+    const rect = svg.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 1000;
     const y = ((e.clientY - rect.top) / rect.height) * 1000;
-    state.points.push({x, y});
-    render();
+    points.push({x, y});
+    draw();
   };
 
-  $("btnSaveRegion").onclick = () => {
-    if(state.points.length < 3) return toast("Нужно хотя бы 3 точки!", "bad");
-    const id = "R" + Math.random().toString(16).slice(2);
-    state.regions.push({
-      id,
-      points: [...state.points],
-      answer: $("fldAnswer").value || "?",
-      color: $("fldColor").value
-    });
-    state.points = [];
-    state.selectedId = id;
-    render();
-    toast("Область добавлена");
-  };
-
-  $("btnApply").onclick = () => {
-    const r = state.regions.find(x => x.id === state.selectedId);
-    if(!r) return;
-    r.answer = $("fldAnswer").value;
-    r.color = $("fldColor").value;
-    render();
-    toast("Обновлено");
-  };
-
-  $("btnDelete").onclick = () => {
-    state.regions = state.regions.filter(r => r.id !== state.selectedId);
-    state.selectedId = null;
-    render();
-  };
-
-  $("btnUndo").onclick = () => { state.points.pop(); render(); };
-  $("btnClear").onclick = () => { state.points = []; render(); };
-
-  $("btnLoad").onclick = () => {
-    const file = $("filePick").files[0];
-    if(file) {
-      state.imageSrc = URL.createObjectURL(file);
-    } else {
-      state.imageSrc = $("imgUrl").value || state.imageSrc;
+  function draw() {
+    let h = '';
+    // Отрисовка текущих точек
+    if(points.length > 0) {
+      const path = points.map(p => `${p.x},${p.y}`).join(' ');
+      h += `<polyline points="${path}" fill="none" stroke="#28d7a7" stroke-width="3" />`;
+      points.forEach(p => h += `<circle cx="${p.x}" cy="${p.y}" r="5" fill="#fff" />`);
     }
-    $("img").src = state.imageSrc;
-    toast("Изображение обновлено");
-  };
-
-  // Генератор HTML для Genially
-  const buildGameHtml = () => {
-    const tasks = $("tasksText").value.split("\n").map(l => {
-      const [p, a, c] = l.split("|").map(s => s.trim());
-      return { prompt: p, answer: a, color: c || "#28d7a7" };
+    // Отрисовка сохраненных областей
+    regions.forEach(r => {
+      const path = r.points.map(p => `${p.x},${p.y}`).join(' ');
+      h += `<polygon points="${path}" fill="rgba(40,215,167,0.3)" stroke="#28d7a7" stroke-width="1" />`;
     });
+    svg.innerHTML = h;
+  }
 
-    const config = {
-      image: state.imageSrc,
-      regions: state.regions,
-      tasks: tasks
+  function undoPoint() { points.pop(); draw(); }
+  function clearPoints() { points = []; draw(); }
+
+  function saveRegion() {
+    const ans = document.getElementById('ansInp').value;
+    if(!ans || points.length < 3) return alert("Нужен ответ и хотя бы 3 точки!");
+    
+    regions.push({
+      answer: ans,
+      points: [...points],
+      color: "#" + Math.floor(Math.random()*16777215).toString(16) // случайный цвет
+    });
+    
+    points = [];
+    document.getElementById('ansInp').value = "";
+    updateUI();
+    draw();
+    showToast("Область сохранена");
+  }
+
+  function updateUI() {
+    const list = document.getElementById('regList');
+    list.innerHTML = regions.map((r, i) => `
+      <div class="list-item">
+        <span>Область #${i+1} (Ответ: ${r.answer})</span>
+        <button onclick="regions.splice(${i},1); updateUI(); draw();" style="border:0; background:none; color:red; cursor:pointer">✖</button>
+      </div>
+    `).join('');
+  }
+
+  function showToast(m) {
+    const t = document.getElementById('toast');
+    t.textContent = m;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+  }
+
+  function buildGame() {
+    if(!currentImgData || regions.length === 0) return alert("Сначала загрузите фото и создайте области!");
+    
+    const gameData = {
+      img: currentImgData,
+      regions: regions
     };
 
-    return `
+    // Генерируем полный HTML игры
+    const fullHtml = `
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <style>
-        body { margin: 0; font-family: sans-serif; background: #0b1020; color: #fff; overflow: hidden; height: 100vh; display: flex; }
-        .ui { width: 300px; padding: 20px; border-right: 1px solid #333; }
-        .game { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; }
-        .frame { width: 90%; aspect-ratio: 16/9; position: relative; }
-        img { width: 100%; height: 100%; object-fit: contain; }
-        svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-        input { width: 100%; padding: 10px; border-radius: 8px; border: none; margin: 10px 0; }
-        button { width: 100%; padding: 10px; background: #28d7a7; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .task { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
-    </style>
+  <meta charset="utf-8">
+  <style>
+    body { margin: 0; background: #eee; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    #ui { padding: 20px; background: #fff; display: flex; gap: 20px; align-items: center; border-bottom: 2px solid #ddd; }
+    #container { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; padding: 20px; background: #333; }
+    .frame { position: relative; background: #000; line-height: 0; }
+    img { max-width: 100%; max-height: 70vh; display: block; }
+    svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+    .task { font-size: 24px; font-weight: bold; }
+    input { font-size: 20px; padding: 5px; width: 100px; }
+    .btn { padding: 10px 20px; background: #28d7a7; border: 0; border-radius: 5px; cursor: pointer; font-weight: bold; }
+  </style>
 </head>
 <body>
-    <div class="ui">
-        <div class="task" id="taskDisp"></div>
-        <input type="text" id="ansInp" placeholder="Твой ответ...">
-        <button onclick="check()">Проверить</button>
-        <p id="msg"></p>
+  <div id="ui">
+    <div class="task" id="q">Решите примеры, чтобы раскрасить!</div>
+    <input type="text" id="ans" placeholder="Ответ...">
+    <button class="btn" onclick="check()">ПРОВЕРИТЬ</button>
+    <div id="stat"></div>
+  </div>
+  <div id="container">
+    <div class="frame">
+      <img src="${gameData.img}">
+      <svg id="gameSvg" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
     </div>
-    <div class="game">
-        <div class="frame">
-            <img src="${config.image}">
-            <svg id="gameSvg" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
-        </div>
-    </div>
-    <script>
-        const config = ${JSON.stringify(config)};
-        let currentTaskIdx = 0;
-        let solvedAnswers = new Set();
+  </div>
 
-        function render() {
-            const svg = document.getElementById("gameSvg");
-            svg.innerHTML = "";
-            config.regions.forEach(r => {
-                const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
-                poly.setAttribute("points", r.points.map(p => p.x + "," + p.y).join(" "));
-                poly.setAttribute("fill", solvedAnswers.has(r.answer) ? r.color : "transparent");
-                poly.setAttribute("stroke", "rgba(255,255,255,0.2)");
-                svg.appendChild(poly);
-            });
-            document.getElementById("taskDisp").textContent = config.tasks[currentTaskIdx].prompt;
-        }
+  <script>
+    const data = ${JSON.stringify(gameData.regions)};
+    let solved = [];
 
-        function check() {
-            const val = document.getElementById("ansInp").value.trim();
-            const correct = config.tasks[currentTaskIdx].answer;
-            if(val == correct) {
-                solvedAnswers.add(correct);
-                document.getElementById("msg").textContent = "Верно!";
-                document.getElementById("ansInp").value = "";
-                if(currentTaskIdx < config.tasks.length - 1) currentTaskIdx++;
-                render();
-            } else {
-                document.getElementById("msg").textContent = "Попробуй еще раз";
-            }
+    function render() {
+      let h = '';
+      data.forEach((r, i) => {
+        const isSolved = solved.includes(r.answer);
+        const path = r.points.map(p => p.x + ',' + p.y).join(' ');
+        h += '<polygon points="' + path + '" fill="' + (isSolved ? r.color : 'rgba(255,255,255,0.8)') + '" stroke="#999" stroke-width="1" />';
+      });
+      document.getElementById('gameSvg').innerHTML = h;
+    }
+
+    function check() {
+      const val = document.getElementById('ans').value.trim();
+      let found = false;
+      data.forEach(r => {
+        if(r.answer === val) {
+          if(!solved.includes(val)) solved.push(val);
+          found = true;
         }
+      });
+      if(found) {
+        document.getElementById('ans').value = "";
         render();
-    <\/script>
+        if(solved.length === new Set(data.map(d=>d.answer)).size) alert("Ура! Все раскрашено!");
+      } else {
+        alert("Неправильно или такого номера нет!");
+      }
+    }
+    render();
+  <\/script>
 </body>
 </html>`;
-  };
 
-  $("btnMakeEmbed").onclick = () => {
-    const html = buildGameHtml();
-    $("embedOut").value = html;
-    const blob = new Blob([html], {type: 'text/html'});
-    $("gamePreview").src = URL.createObjectURL(blob);
-    toast("Код готов и загружен в предпросмотр");
-  };
+    const encoded = btoa(unescape(encodeURIComponent(fullHtml)));
+    const embedCode = `<iframe srcdoc="${fullHtml.replace(/"/g, '&quot;').replace(/'/g, '&apos;')}" width="100%" height="600" style="border:0; border-radius:10px;" allowfullscreen></iframe>`;
+    
+    document.getElementById('output').value = embedCode;
+    document.getElementById('preview').srcdoc = fullHtml;
+  }
 
-  $("btnCopyEmbed").onclick = () => {
-    $("embedOut").select();
+  function copyCode() {
+    const copyText = document.getElementById("output");
+    copyText.select();
     document.execCommand("copy");
-    toast("Скопировано!");
-  };
-
-  render();
-})();
+    showToast("Код скопирован!");
+  }
 </script>
+
 </body>
 </html>
