@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Редактор раскраски</title>
+<title>Редактор раскраски v2</title>
 <style>
   :root{
     --text:#eef3ff; --muted:rgba(238,243,255,.72);
-    --ok:#28d7a7; --bad:#ff4d6d;
+    --ok:#28d7a7; --bad:#ff4d6d; --line:rgba(255,255,255,.12);
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -41,6 +41,9 @@
     background:rgba(10,16,35,.65); color:var(--text); outline:none;
   }
   textarea{min-height:110px; resize:vertical}
+  input[type="text"]:focus, textarea:focus, select:focus{
+    border-color:rgba(122,166,255,.55); box-shadow:0 0 0 3px rgba(122,166,255,.16)
+  }
   .btnRow{display:flex; flex-wrap:wrap; gap:10px; margin-top:10px}
   .btn{
     border:0; cursor:pointer; user-select:none;
@@ -88,7 +91,7 @@
   .stage{padding:10px}
   .stageBox{
     height:100%; border-radius:18px; overflow:hidden;
-    background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+    background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,.08);
     position:relative;
     display:flex; align-items:center; justify-content:center;
     padding:10px;
@@ -96,24 +99,16 @@
   .frame{
     width:100%; max-width:980px; aspect-ratio:16/9;
     border-radius:18px; overflow:hidden; position:relative;
-    background:transparent;
-    box-shadow:0 0 0 1px rgba(42,234,200,.55),
-              0 0 0 3px rgba(122,166,255,.18),
-              0 0 22px rgba(42,234,200,.20),
-              0 0 28px rgba(122,166,255,.18);
-    border:1px solid rgba(255,255,255,.08);
+    box-shadow: 0 0 40px rgba(0,0,0,0.5);
+    border:1px solid rgba(255,255,255,.1);
   }
   .frame img{
     position:absolute; inset:0; width:100%; height:100%;
-    object-fit:contain; pointer-events:none; user-select:none;
-    background:transparent;
+    object-fit:contain; pointer-events:none;
   }
   .frame svg{
-    position:absolute;
-    inset:auto;
-    width:10px; height:10px;
-    touch-action:none;
-    overflow:visible;
+    position:absolute; inset:0; width:100%; height:100%;
+    touch-action:none; overflow:visible; cursor: crosshair;
   }
   .empty{
     position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
@@ -122,7 +117,7 @@
     pointer-events:none;
   }
   .preview{padding:10px}
-  iframe{width:100%; height:100%; border:0; border-radius:18px; background:transparent}
+  iframe{width:100%; height:100%; border:0; border-radius:18px; background: #050817;}
   .toast{
     position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
     background:rgba(8,12,24,.92); border:1px solid rgba(255,255,255,.12);
@@ -130,19 +125,11 @@
     display:flex; align-items:center; gap:10px;
     box-shadow:0 20px 60px rgba(0,0,0,.35);
     opacity:0; pointer-events:none;
-    transition:opacity .18s ease, transform .18s ease;
-    max-width:min(920px, calc(100% - 24px));
-    font-size:13px;
-    z-index:999999;
+    transition:0.2s; z-index:999999;
   }
   .toast.show{opacity:1; transform:translateX(-50%) translateY(-2px)}
-  .dot{width:10px; height:10px; border-radius:999px; background:var(--ok); box-shadow:0 0 0 3px rgba(40,215,167,.15)}
-  .dot.bad{background:var(--bad); box-shadow:0 0 0 3px rgba(255,77,109,.15)}
-  @media (max-width:980px){
-    body{overflow:auto}
-    .app{grid-template-columns:1fr; height:auto}
-    .right{grid-template-rows:460px 340px}
-  }
+  .dot{width:10px; height:10px; border-radius:999px; background:var(--ok)}
+  .dot.bad{background:var(--bad)}
 </style>
 </head>
 <body>
@@ -150,105 +137,72 @@
   <div class="card left">
     <div class="head">
       <div class="title">Редактор раскраски</div>
-      <div class="sub">Выбери картинку → обведи области → укажи ответ и цвет → смотри предпросмотр → получи код для Genially.</div>
+      <div class="sub">Создай интерактивную игру: обведи области и привяжи их к правильным ответам.</div>
     </div>
 
     <div class="scroll">
       <div class="sec">
-        <h3>Картинка</h3>
-        <label>Выбрать изображение</label>
+        <h3>1. Картинка</h3>
         <select id="preset">
           <option value="https://i.ibb.co/B5wHGTfh/d5e6afa4-eef8-4359-bc47-7ca55574f6ed.jpg">Котик с шариками</option>
-          <option value="__custom__">Загрузить ссылку на своё…</option>
+          <option value="__custom__">Своя ссылка или файл...</option>
         </select>
-
-        <label>Ссылка на изображение</label>
-        <input id="imgUrl" type="text" placeholder="Вставь прямую ссылку (или HTML с <img src='...'>)"/>
-
-        <div class="hint">Если вставляешь HTML — я автоматически возьму src. Нажми Enter.</div>
-
-        <label>или файл с компьютера</label>
-        <input id="filePick" type="file" accept="image/*,.svg"/>
-
+        <input id="imgUrl" type="text" placeholder="https://..." style="margin-top:8px"/>
+        <label>Загрузить файл</label>
+        <input id="filePick" type="file" accept="image/*"/>
         <div class="btnRow">
-          <button class="btn" id="btnLoad" type="button">Загрузить изображение</button>
-          <button class="btn secondary" id="btnFit" type="button">Подогнать</button>
+          <button class="btn" id="btnLoad">Загрузить</button>
         </div>
       </div>
 
       <div class="sec">
-        <h3>Обводка</h3>
+        <h3>2. Обводка</h3>
         <div class="btnRow">
-          <button class="btn secondary" id="btnUndo" type="button">Назад</button>
-          <button class="btn danger" id="btnClear" type="button">Очистить точки</button>
-          <button class="btn secondary" id="btnNew" type="button">Новая область</button>
+          <button class="btn secondary" id="btnUndo">Шаг назад</button>
+          <button class="btn danger" id="btnClear">Сброс</button>
         </div>
+        <div class="hint">Кликай по картинке, чтобы создать контур области.</div>
         <div class="btnRow" style="margin-top:12px">
-          <span class="pill"><span class="sw" style="background:rgba(42,234,200,.9)"></span>Точек: <span id="pointsCount">0</span></span>
-          <span class="pill"><span class="sw" style="background:rgba(122,166,255,.9)"></span>Областей: <span id="regionsCount">0</span></span>
-        </div>
-        <div class="hint">Клик по картинке — точка. Сохрани область, когда готово.</div>
-        <div class="btnRow" style="margin-top:12px">
-          <button class="btn" id="btnSaveRegion" type="button">Сохранить область</button>
+           <button class="btn" id="btnSaveRegion">Создать область из точек</button>
         </div>
       </div>
 
       <div class="sec">
-        <h3>Список областей</h3>
-        <div class="list" id="regionsList"></div>
-        <div class="btnRow" style="margin-top:10px">
-          <button class="btn danger" id="btnDelete" type="button">Удалить</button>
-          <button class="btn secondary" id="btnDuplicate" type="button">Дублировать</button>
-        </div>
-      </div>
-
-      <div class="sec">
-        <h3>Настройки области</h3>
-        <div class="row">
-          <div>
-            <label>Ответ / номер</label>
-            <input id="fldAnswer" type="text" placeholder="Например: 5"/>
-          </div>
-          <div>
-            <label>Показывать номер</label>
-            <select id="fldShowNumber">
-              <option value="1">Да</option>
-              <option value="0">Нет</option>
-            </select>
-          </div>
-        </div>
-
-        <label>Цвет</label>
+        <h3>3. Параметры области</h3>
+        <label>Ответ (число или текст)</label>
+        <input id="fldAnswer" type="text" placeholder="Например: 12"/>
+        <label>Цвет закраски</label>
         <div class="colorRow">
-          <input id="fldColor" type="color" value="#ff4d6d"/>
-          <input id="fldColorHex" type="text" value="#ff4d6d"/>
+          <input id="fldColor" type="color" value="#28d7a7"/>
+          <input id="fldColorHex" type="text" value="#28d7a7"/>
         </div>
-
-        <label>Прозрачность</label>
-        <input id="fldAlpha" type="range" min="0.15" max="1" step="0.01" value="0.55"/>
-
         <div class="btnRow">
-          <button class="btn" id="btnApply" type="button">Сохранить</button>
-          <button class="btn secondary" id="btnShow" type="button">Показать</button>
+          <button class="btn" id="btnApply">Применить к выбранной</button>
         </div>
       </div>
 
       <div class="sec">
-        <h3>Задания (любое количество)</h3>
-        <div class="hint">Одна строка = одно задание. Формат: <b>пример | ответ | цвет</b>. Цвет можно не указывать.</div>
-        <textarea id="tasksText"></textarea>
+        <h3>4. Список областей</h3>
+        <div class="list" id="regionsList"></div>
+        <div class="btnRow">
+          <button class="btn danger" id="btnDelete">Удалить</button>
+        </div>
       </div>
 
       <div class="sec">
-        <h3>Genially</h3>
-        <div class="btnRow">
-          <button class="btn secondary" id="btnRefreshPreview" type="button">Обновить предпросмотр</button>
-          <button class="btn" id="btnMakeEmbed" type="button">Получить код</button>
-          <button class="btn secondary" id="btnCopyEmbed" type="button">Скопировать</button>
-        </div>
+        <h3>5. Задания (Пример | Ответ)</h3>
+        <textarea id="tasksText">2 + 2 | 4 | #28d7a7
+5 * 3 | 15 | #ff4d6d
+10 - 5 | 5 | #7aa6ff</textarea>
+      </div>
 
-        <label style="margin-top:12px">Код для вставки в Genially</label>
-        <textarea id="embedOut" readonly></textarea>
+      <div class="sec">
+        <h3>6. Экспорт</h3>
+        <div class="btnRow">
+          <button class="btn" id="btnMakeEmbed">Сгенерировать код</button>
+          <button class="btn secondary" id="btnCopyEmbed">Копировать</button>
+        </div>
+        <textarea id="embedOut" readonly style="margin-top:10px; font-size:10px; height:60px"></textarea>
       </div>
     </div>
   </div>
@@ -257,15 +211,14 @@
     <div class="card stage">
       <div class="stageBox">
         <div class="frame" id="frame">
-          <img id="img" alt=""/>
+          <img id="img" src="https://i.ibb.co/B5wHGTfh/d5e6afa4-eef8-4359-bc47-7ca55574f6ed.jpg" crossorigin="anonymous"/>
           <svg id="svg" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
-          <div class="empty" id="empty">Пока нет картинки.<br/>Выбери файл или вставь ссылку.</div>
+          <div class="empty" id="empty" style="display:none">Загрузите изображение</div>
         </div>
       </div>
     </div>
-
     <div class="card preview">
-      <iframe id="gamePreview" title="Предпросмотр игры"></iframe>
+      <iframe id="gamePreview"></iframe>
     </div>
   </div>
 </div>
@@ -274,790 +227,228 @@
 
 <script>
 (() => {
-  const $ = (id)=>document.getElementById(id);
-  const DEFAULT_URL = "https://i.ibb.co/B5wHGTfh/d5e6afa4-eef8-4359-bc47-7ca55574f6ed.jpg";
-
-  const els = {
-    preset:$("preset"), imgUrl:$("imgUrl"), filePick:$("filePick"),
-    btnLoad:$("btnLoad"), btnFit:$("btnFit"),
-    btnUndo:$("btnUndo"), btnClear:$("btnClear"), btnNew:$("btnNew"),
-    btnSaveRegion:$("btnSaveRegion"),
-    pointsCount:$("pointsCount"), regionsCount:$("regionsCount"),
-    regionsList:$("regionsList"),
-    btnDelete:$("btnDelete"), btnDuplicate:$("btnDuplicate"),
-    fldAnswer:$("fldAnswer"), fldColor:$("fldColor"), fldColorHex:$("fldColorHex"),
-    fldAlpha:$("fldAlpha"), fldShowNumber:$("fldShowNumber"),
-    btnApply:$("btnApply"), btnShow:$("btnShow"),
-    tasksText:$("tasksText"),
-    btnRefreshPreview:$("btnRefreshPreview"),
-    btnMakeEmbed:$("btnMakeEmbed"),
-    btnCopyEmbed:$("btnCopyEmbed"),
-    embedOut:$("embedOut"),
-    img:$("img"), svg:$("svg"), empty:$("empty"),
-    gamePreview:$("gamePreview"),
-    toast:$("toast"), tdot:$("tdot"), tmsg:$("tmsg"),
-    frame:$("frame")
-  };
-
+  const $ = (id) => document.getElementById(id);
   const state = {
-    imageUrl: DEFAULT_URL,
-    imageDataUrl: "",
-    imgLoaded: false,
+    imgLoaded: true,
     points: [],
     regions: [],
     selectedId: null,
-    objectUrl: null
+    imageSrc: "https://i.ibb.co/B5wHGTfh/d5e6afa4-eef8-4359-bc47-7ca55574f6ed.jpg"
   };
 
-  // toast
-  let toastTimer=null;
-  const toast=(msg,kind="ok")=>{
-    els.tmsg.textContent=msg;
-    els.tdot.classList.toggle("bad", kind==="bad");
-    els.toast.classList.add("show");
-    clearTimeout(toastTimer);
-    toastTimer=setTimeout(()=>els.toast.classList.remove("show"), 2600);
+  const toast = (msg, kind="ok") => {
+    $("tmsg").textContent = msg;
+    $("tdot").className = "dot " + (kind === "bad" ? "bad" : "");
+    $("toast").classList.add("show");
+    setTimeout(() => $("toast").classList.remove("show"), 2000);
   };
 
-  const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
-  const uid=()=>("R"+Math.random().toString(16).slice(2,10));
-
-  const extractUrl=(text)=>{
-    const t=(text||"").trim();
-    if(!t) return "";
-    if(/^https?:\/\/\S+$/i.test(t)) return t;
-    const m1=t.match(/src\s*=\s*["']([^"']+)["']/i);
-    if(m1 && m1[1]) return m1[1].trim();
-    const m3=t.match(/https?:\/\/[^\s"'<>]+/i);
-    if(m3 && m3[0]) return m3[0];
-    return "";
-  };
-
-  const hexNormalize=(h)=>{
-    let x=(h||"").trim();
-    if(!x) return "";
-    if(x[0]!=="#") x="#"+x;
-    if(!/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(x)) return "";
-    if(x.length===4) x="#"+x[1]+x[1]+x[2]+x[2]+x[3]+x[3];
-    return x.toLowerCase();
-  };
-
-  const svgEl=(tag,attrs)=>{
-    const n=document.createElementNS("http://www.w3.org/2000/svg",tag);
-    for(const k in attrs) n.setAttribute(k,String(attrs[k]));
-    return n;
-  };
-
-  const polygonCentroid=(pts)=>{
-    if(!pts||pts.length<3){
-      const ax=pts.reduce((s,p)=>s+p.x,0)/Math.max(1,pts.length);
-      const ay=pts.reduce((s,p)=>s+p.y,0)/Math.max(1,pts.length);
-      return {x:ax||500,y:ay||500};
-    }
-    let area=0,cx=0,cy=0;
-    for(let i=0;i<pts.length;i++){
-      const p1=pts[i], p2=pts[(i+1)%pts.length];
-      const a=p1.x*p2.y - p2.x*p1.y;
-      area+=a; cx+=(p1.x+p2.x)*a; cy+=(p1.y+p2.y)*a;
-    }
-    area*=0.5;
-    if(Math.abs(area)<1e-6) return {x:500,y:500};
-    cx/=(6*area); cy/=(6*area);
-    return {x:cx,y:cy};
-  };
-
-  const hexToRgb=(hex)=>{
-    const h=hexNormalize(hex)||"#ff4d6d";
-    const r=parseInt(h.slice(1,3),16), g=parseInt(h.slice(3,5),16), b=parseInt(h.slice(5,7),16);
-    return `${r},${g},${b}`;
-  };
-
-  // contain-box
-  const calcContainBox = ()=>{
-    const fr = els.frame.getBoundingClientRect();
-    const iw = els.img.naturalWidth || 1;
-    const ih = els.img.naturalHeight || 1;
-    const fw = fr.width, fh = fr.height;
-
-    const imgRatio = iw/ih;
-    const frameRatio = fw/fh;
-
-    let w,h,x,y;
-    if(imgRatio > frameRatio){
-      w = fw; h = fw / imgRatio;
-      x = 0; y = (fh - h)/2;
-    }else{
-      h = fh; w = fh * imgRatio;
-      y = 0; x = (fw - w)/2;
-    }
-
-    Object.assign(els.svg.style, {
-      left: x + "px",
-      top: y + "px",
-      width: w + "px",
-      height: h + "px",
-      position: "absolute"
+  const render = () => {
+    const svg = $("svg");
+    svg.innerHTML = "";
+    
+    // Отрисовка сохраненных областей
+    state.regions.forEach(r => {
+      const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+      const pts = r.points.map(p => `${p.x},${p.y}`).join(" ");
+      poly.setAttribute("points", pts);
+      poly.setAttribute("fill", r.id === state.selectedId ? r.color : "rgba(255,255,255,0.1)");
+      poly.setAttribute("stroke", r.id === state.selectedId ? "#fff" : "rgba(255,255,255,0.3)");
+      poly.setAttribute("stroke-width", "2");
+      poly.style.cursor = "pointer";
+      poly.onclick = (e) => { e.stopPropagation(); selectRegion(r.id); };
+      svg.appendChild(poly);
     });
-  };
 
-  const renderOverlay=()=>{
-    while(els.svg.firstChild) els.svg.removeChild(els.svg.firstChild);
-
-    for(const r of state.regions){
-      const pts=(r.points||[]).map(p=>`${p.x},${p.y}`).join(" ");
-      const fill=`rgba(${hexToRgb(r.color||"#ff4d6d")},${clamp(r.alpha ?? 0.55,0,1)})`;
-      const poly=svgEl("polygon",{points:pts, fill: r.paintedPreview?fill:"rgba(0,0,0,0)"});
-      poly.style.cursor="pointer";
-      poly.addEventListener("click",(e)=>{e.preventDefault();e.stopPropagation();selectRegion(r.id);});
-      els.svg.appendChild(poly);
-
-      if(r.id===state.selectedId){
-        const outline=svgEl("polygon",{points:pts, fill:"rgba(0,0,0,0)", stroke:"rgba(122,166,255,.95)","stroke-width":2});
-        outline.setAttribute("stroke-linejoin","round");
-        outline.setAttribute("stroke-linecap","round");
-        els.svg.appendChild(outline);
-      }
-
-      if(r.showNumber){
-        const c=polygonCentroid(r.points);
-        const t=svgEl("text",{x:c.x,y:c.y,"text-anchor":"middle","dominant-baseline":"middle","font-size":32,"font-weight":900,
-          fill:"rgba(10,16,35,.92)",stroke:"rgba(255,255,255,.85)","stroke-width":4,"paint-order":"stroke"});
-        t.textContent=r.answer??"";
-        els.svg.appendChild(t);
-      }
-    }
-
-    if(state.points.length){
-      const pl=svgEl("polyline",{points:state.points.map(p=>`${p.x},${p.y}`).join(" "),
-        fill:"rgba(0,0,0,0)", stroke:"rgba(40,215,167,.95)","stroke-width":3});
-      pl.setAttribute("stroke-linejoin","round"); pl.setAttribute("stroke-linecap","round");
-      els.svg.appendChild(pl);
-
-      state.points.forEach((p)=>{
-        const c=svgEl("circle",{cx:p.x,cy:p.y,r:6, fill:"rgba(40,215,167,.95)",
-          stroke:"rgba(255,255,255,.85)","stroke-width":2});
-        els.svg.appendChild(c);
+    // Отрисовка текущей линии обводки
+    if (state.points.length > 0) {
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+      line.setAttribute("points", state.points.map(p => `${p.x},${p.y}`).join(" "));
+      line.setAttribute("fill", "none");
+      line.setAttribute("stroke", "#28d7a7");
+      line.setAttribute("stroke-width", "3");
+      svg.appendChild(line);
+      
+      state.points.forEach(p => {
+        const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        c.setAttribute("cx", p.x); c.setAttribute("cy", p.y); c.setAttribute("r", "5");
+        c.setAttribute("fill", "#28d7a7");
+        svg.appendChild(c);
       });
     }
-
-    els.pointsCount.textContent=String(state.points.length);
-    els.regionsCount.textContent=String(state.regions.length);
+    updateList();
   };
 
-  const renderList=()=>{
-    els.regionsList.innerHTML="";
-    if(!state.regions.length){
-      const d=document.createElement("div");
-      d.style.color="rgba(238,243,255,.65)";
-      d.style.fontSize="12.5px";
-      d.textContent="Пока нет областей. Обведи и нажми «Сохранить область».";
-      els.regionsList.appendChild(d);
-      return;
-    }
-    state.regions.forEach((r,idx)=>{
-      const it=document.createElement("div");
-      it.className="item"+(r.id===state.selectedId?" active":"");
-      it.addEventListener("click",()=>selectRegion(r.id));
-
-      const left=document.createElement("div"); left.style.display="flex"; left.style.gap="10px"; left.style.alignItems="center";
-      const sw=document.createElement("div"); sw.className="sw"; sw.style.background=r.color||"#ff4d6d"; left.appendChild(sw);
-
-      const meta=document.createElement("div");
-      const nm=document.createElement("div"); nm.className="name"; nm.textContent=`Область ${idx+1}${r.answer?(" • "+r.answer):""}`;
-      const mm=document.createElement("div"); mm.className="meta"; mm.textContent=`${(r.points||[]).length} точек`;
-      meta.appendChild(nm); meta.appendChild(mm);
-      left.appendChild(meta);
-
-      const chip=document.createElement("div"); chip.className="chip"; chip.textContent=r.id;
-
-      it.appendChild(left); it.appendChild(chip);
-      els.regionsList.appendChild(it);
+  const updateList = () => {
+    const list = $("regionsList");
+    list.innerHTML = "";
+    state.regions.forEach(r => {
+      const div = document.createElement("div");
+      div.className = "item " + (r.id === state.selectedId ? "active" : "");
+      div.innerHTML = `<span class="sw" style="background:${r.color}"></span> <span class="name">Ответ: ${r.answer}</span>`;
+      div.onclick = () => selectRegion(r.id);
+      list.appendChild(div);
     });
   };
 
-  const selectRegion=(id)=>{
-    state.selectedId=id;
-    const r=state.regions.find(x=>x.id===id);
-    if(!r){renderList();renderOverlay();return;}
-    els.fldAnswer.value=r.answer??"";
-    els.fldColor.value=r.color||"#ff4d6d";
-    els.fldColorHex.value=r.color||"#ff4d6d";
-    els.fldAlpha.value=String(r.alpha ?? 0.55);
-    els.fldShowNumber.value=r.showNumber?"1":"0";
-    state.regions.forEach(rr=>rr.paintedPreview=false);
-    r.paintedPreview=true;
-    renderList(); renderOverlay();
-  };
-
-  const svgToNorm=(e)=>{
-    const rect=els.svg.getBoundingClientRect();
-    const x=(e.clientX-rect.left)/rect.width;
-    const y=(e.clientY-rect.top)/rect.height;
-    return {x:clamp(x,0,1)*1000, y:clamp(y,0,1)*1000};
-  };
-
-  const addPoint=(e)=>{
-    if(!state.imgLoaded) return;
-    const p=svgToNorm(e);
-    state.points.push(p);
-    renderOverlay();
-  };
-
-  const undoPoint=()=>{ if(state.points.length){ state.points.pop(); renderOverlay(); } };
-  const clearPoints=()=>{ state.points=[]; renderOverlay(); };
-
-  const newOutline=()=>{
-    state.points=[]; state.selectedId=null;
-    state.regions.forEach(rr=>rr.paintedPreview=false);
-    renderList(); renderOverlay();
-  };
-
-  const saveRegion=()=>{
-    if(state.points.length<3){ toast("Нужно минимум 3 точки.","bad"); return; }
-    const answer=(els.fldAnswer.value||"").trim();
-    if(!answer){ toast("Укажи ответ/номер.","bad"); return; }
-    const color=hexNormalize(els.fldColorHex.value) || els.fldColor.value || "#ff4d6d";
-    const alpha=parseFloat(els.fldAlpha.value||"0.55");
-    const showNumber=els.fldShowNumber.value==="1";
-
-    const r={ id:uid(), points:JSON.parse(JSON.stringify(state.points)), answer, color,
-      alpha: clamp(isFinite(alpha)?alpha:0.55,0.05,1), showNumber, paintedPreview:false };
-
-    state.regions.push(r);
-    state.points=[];
-    state.selectedId=r.id;
-    toast("Область сохранена.","ok");
-    renderList(); selectRegion(r.id);
-    refreshPreview();
-  };
-
-  const deleteSelected=()=>{
-    if(!state.selectedId){ toast("Выбери область.","bad"); return; }
-    const i=state.regions.findIndex(r=>r.id===state.selectedId);
-    if(i>=0){
-      state.regions.splice(i,1);
-      state.selectedId=null;
-      state.points=[];
-      toast("Удалено.","ok");
-      renderList(); renderOverlay();
-      refreshPreview();
+  const selectRegion = (id) => {
+    state.selectedId = id;
+    const r = state.regions.find(x => x.id === id);
+    if(r) {
+      $("fldAnswer").value = r.answer;
+      $("fldColor").value = r.color;
+      $("fldColorHex").value = r.color;
     }
-  };
-
-  const duplicateSelected=()=>{
-    if(!state.selectedId){ toast("Выбери область.","bad"); return; }
-    const src=state.regions.find(r=>r.id===state.selectedId);
-    if(!src) return;
-    const copy=JSON.parse(JSON.stringify(src));
-    copy.id=uid(); copy.paintedPreview=false;
-    state.regions.push(copy);
-    state.selectedId=copy.id;
-    toast("Дублировано.","ok");
-    renderList(); selectRegion(copy.id);
-    refreshPreview();
-  };
-
-  const applyFields=()=>{
-    if(!state.selectedId){ toast("Выбери область.","bad"); return; }
-    const r=state.regions.find(x=>x.id===state.selectedId);
-    if(!r) return;
-    r.answer=(els.fldAnswer.value||"").trim();
-    if(!r.answer){ toast("Ответ/номер не может быть пустым.","bad"); return; }
-    r.color=hexNormalize(els.fldColorHex.value) || els.fldColor.value || "#ff4d6d";
-    r.alpha=clamp(parseFloat(els.fldAlpha.value||"0.55"),0.05,1);
-    r.showNumber=els.fldShowNumber.value==="1";
-    toast("Сохранено.","ok");
-    renderList(); renderOverlay();
-    refreshPreview();
-  };
-
-  const showSelectedPreview=()=>{
-    if(!state.selectedId){ toast("Выбери область.","bad"); return; }
-    state.regions.forEach(rr=>rr.paintedPreview=false);
-    const r=state.regions.find(x=>x.id===state.selectedId);
-    if(r) r.paintedPreview=true;
-    renderOverlay();
-  };
-
-  // ---- Надёжная загрузка: 1) createObjectURL, 2) FileReader fallback ----
-  const revokeObjectUrl=()=>{
-    if(state.objectUrl){
-      try{ URL.revokeObjectURL(state.objectUrl); }catch{}
-      state.objectUrl=null;
-    }
-  };
-
-  const loadImageFromSrc = (src, label)=>{
-    return new Promise((resolve,reject)=>{
-      state.imgLoaded=false;
-      els.empty.style.display="";
-
-      els.img.onload=null; els.img.onerror=null;
-
-      els.img.onload=()=>{
-        state.imgLoaded=true;
-        els.empty.style.display="none";
-        calcContainBox();
-        renderOverlay();
-        toast("Картинка загружена ("+label+").","ok");
-        refreshPreview();
-        resolve(true);
-      };
-
-      els.img.onerror=()=>{
-        state.imgLoaded=false;
-        els.empty.style.display="";
-        reject(new Error("img-load-fail"));
-      };
-
-      els.img.src="";
-      els.img.src=src;
-    });
-  };
-
-  const loadImage = async ()=>{
-    const file = els.filePick.files && els.filePick.files[0];
-
-    // 1) файл
-    if(file){
-      toast("Файл выбран — загружаю…","ok");
-
-      // пробуем самый надёжный способ
-      try{
-        revokeObjectUrl();
-        state.objectUrl = URL.createObjectURL(file);
-        state.imageDataUrl = "";
-        state.imageUrl = "";
-        await loadImageFromSrc(state.objectUrl, "файл");
-        return;
-      }catch{
-        // fallback на FileReader
-      }
-
-      const reader=new FileReader();
-      reader.onload=async ()=>{
-        try{
-          revokeObjectUrl();
-          state.imageDataUrl=String(reader.result||"");
-          state.imageUrl="";
-          await loadImageFromSrc(state.imageDataUrl, "файл");
-        }catch{
-          toast("Не удалось открыть файл. Попробуй другой браузер (Chrome).","bad");
-        }
-      };
-      reader.onerror=()=>toast("Не удалось прочитать файл. Попробуй Chrome.","bad");
-      reader.readAsDataURL(file);
-      return;
-    }
-
-    // 2) ссылка / HTML
-    const raw = els.imgUrl.value || "";
-    const url = extractUrl(raw);
-    if(!url){ toast("Вставь ссылку или выбери файл.","bad"); return; }
-
-    try{
-      revokeObjectUrl();
-      state.imageUrl=url;
-      state.imageDataUrl="";
-      await loadImageFromSrc(url, "ссылка");
-    }catch{
-      toast("Не удалось загрузить по ссылке. Нужна прямая ссылка на файл.","bad");
-    }
-  };
-
-  const fit=()=>{
-    if(!state.imgLoaded){ toast("Сначала загрузи картинку.","bad"); return; }
-    calcContainBox();
-    toast("Подогнано.","ok");
-  };
-
-  // tasks
-  const defaultTasks = [
-    "2 × 6 = ? | 12 | #ff4d6d",
-    "7 × 2 = ? | 14 | #ffd166",
-    "9 × 2 = ? | 18 | #7aa6ff",
-    "3 × 5 = ? | 15 | #2aeac8",
-    "4 × 4 = ? | 16 | #b8ff7a",
-    "10 − 5 = ? | 5 | #c77dff",
-    "8 − 3 = ? | 5 | #c77dff",
-    "6 − 1 = ? | 5 | #c77dff",
-    "9 − 4 = ? | 5 | #c77dff",
-    "7 − 2 = ? | 5 | #c77dff"
-  ].join("\n");
-
-  const parseTasks = ()=>{
-    const lines = (els.tasksText.value||"").split("\n").map(s=>s.trim()).filter(Boolean);
-    const out = [];
-    for(const line of lines){
-      const parts=line.split("|").map(s=>s.trim());
-      if(parts.length<2) continue;
-      const prompt=parts[0];
-      const answer=parts[1];
-      const color=hexNormalize(parts[2]||"") || "#ff4d6d";
-      out.push({prompt, answer, color});
-    }
-    return out;
-  };
-
-  const buildPayload=()=>{
-    if(!state.imgLoaded) throw new Error("no-image");
-    if(!state.regions.length) throw new Error("no-regions");
-    const tasks=parseTasks();
-    if(!tasks.length) throw new Error("no-tasks");
-
-    const imageSrc = state.imageDataUrl || state.imageUrl || state.objectUrl || DEFAULT_URL;
-
-    const regionAnswers = new Set(state.regions.map(r=>String((r.answer||"").trim())));
-    const taskAnswers = new Set(tasks.map(t=>String((t.answer||"").trim())));
-    const missing=[];
-    regionAnswers.forEach(a=>{ if(a && !taskAnswers.has(a)) missing.push(a); });
-
-    return {
-      version:2,
-      imageSrc,
-      regions: state.regions.map(r=>({
-        id:r.id,
-        points:r.points,
-        answer:String((r.answer||"").trim()),
-        color:r.color||"#ff4d6d",
-        alpha:clamp(r.alpha ?? 0.55,0.05,1),
-        showNumber:!!r.showNumber
-      })),
-      tasks,
-      _missingAnswers: missing
-    };
-  };
-
-  // game (вопросы НЕ повторяются, по порядку; при ответе=5 красим все области с 5 сразу)
-  const buildGameHtml=(payload)=>{
-    const data=JSON.stringify(payload).replace(/</g,"\\u003c");
-    return `<!doctype html>
-<html lang="ru"><head>
-<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Раскраска по ответам</title>
-<style>
-*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:transparent;color:#eef3ff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;overflow:hidden}
-.wrap{height:100%;width:100%;display:grid;grid-template-columns:38% 62%}
-.left{padding:32px 28px;background:transparent}
-.right{display:flex;align-items:center;justify-content:center;padding:18px 18px 18px 0;background:transparent}
-.t{font-weight:900;font-size:26px}.d{margin-top:10px;color:rgba(238,243,255,.72);line-height:1.35}
-.q{margin-top:22px;font-size:44px;font-weight:900}
-.inp{margin-top:18px;width:100%;max-width:520px;padding:14px;border-radius:14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);color:#eef3ff;outline:none;font-size:18px}
-.row{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px}
-.btn{border:0;cursor:pointer;padding:12px 18px;border-radius:14px;font-weight:900;background:linear-gradient(90deg, rgba(40,215,167,1), rgba(42,234,200,1));color:#06101c;box-shadow:0 12px 34px rgba(40,215,167,.18)}
-.btn.s{background:rgba(255,255,255,.10);color:#eef3ff;box-shadow:none;border:1px solid rgba(255,255,255,.14)}
-.stat{margin-top:16px;padding:12px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.10);max-width:520px}
-.stat strong{display:block;font-size:16px}.stat span{display:block;margin-top:4px;color:rgba(238,243,255,.72)}
-.paintRow{margin-top:12px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
-.h{display:none !important}
-.pot{width:62px;height:62px;border-radius:16px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;position:relative;transform-origin:50% 80%;animation:w 1.8s ease-in-out infinite}
-@keyframes w{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg) translateY(-1px)}}
-.paint{width:26px;height:26px;border-radius:10px;border:1px solid rgba(255,255,255,.20)}
-.lb{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-weight:900;font-size:12px;color:rgba(238,243,255,.80);text-shadow:0 2px 10px rgba(0,0,0,.35);pointer-events:none}
-.frame{width:100%;max-width:980px;aspect-ratio:16/9;border-radius:18px;overflow:hidden;position:relative;background:transparent;box-shadow:0 0 0 1px rgba(42,234,200,.55),0 0 0 3px rgba(122,166,255,.18),0 0 22px rgba(42,234,200,.20),0 0 28px rgba(122,166,255,.18);border:1px solid rgba(255,255,255,.08)}
-.frame img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none;background:transparent}
-.frame svg{position:absolute;inset:auto;width:10px;height:10px;touch-action:none;overflow:visible}
-@media (max-width:980px){body{overflow:auto}.wrap{grid-template-columns:1fr;padding:16px}.right{padding:0}}
-</style></head><body>
-<script id="PAYLOAD" type="application/json">${data}</script>
-<div class="wrap" id="wrap">
-  <div class="left" id="left">
-    <div class="t">Раскраска по ответам</div>
-    <div class="d">Реши пример → появится краска → нажми на область с этим ответом (закрасятся все сразу).</div>
-    <div class="q" id="q">—</div>
-    <input class="inp" id="a" placeholder="Введи ответ" inputmode="numeric"/>
-    <div class="row">
-      <button class="btn" id="check" type="button">Проверить</button>
-      <button class="btn s" id="next" type="button">Дальше</button>
-    </div>
-    <div class="stat" id="stat">
-      <strong>Пока нет краски</strong>
-      <span>Сначала реши пример.</span>
-      <div class="paintRow h" id="pots"></div>
-    </div>
-  </div>
-  <div class="right">
-    <div class="frame" id="frame">
-      <img id="img" alt=""/>
-      <svg id="svg" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
-    </div>
-  </div>
-</div>
-<script>
-(()=> {
-  const payload=JSON.parse(document.getElementById("PAYLOAD").textContent);
-  const img=document.getElementById("img");
-  const svg=document.getElementById("svg");
-  const q=document.getElementById("q");
-  const a=document.getElementById("a");
-  const stat=document.getElementById("stat");
-  const pots=document.getElementById("pots");
-  const frame=document.getElementById("frame");
-
-  const regions=payload.regions.map(r=>({...r, painted:false}));
-  const tasks=payload.tasks.slice();
-  let idx=0;
-  let paint=null;
-
-  const hexToRgb=(h)=>{h=(h||"").trim().toLowerCase(); if(h[0]!=="#")h="#"+h; if(h.length===4)h="#"+h[1]+h[1]+h[2]+h[2]+h[3]+h[3];
-    return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
-  };
-
-  const centroid=(pts)=>{ if(!pts||pts.length<3){let ax=0,ay=0; for(const p of pts){ax+=p.x;ay+=p.y} ax/=Math.max(1,pts.length); ay/=Math.max(1,pts.length); return {x:ax||500,y:ay||500};}
-    let area=0,cx=0,cy=0; for(let i=0;i<pts.length;i++){const p1=pts[i],p2=pts[(i+1)%pts.length]; const a=p1.x*p2.y-p2.x*p1.y; area+=a; cx+=(p1.x+p2.x)*a; cy+=(p1.y+p2.y)*a;}
-    area*=0.5; if(Math.abs(area)<1e-6) return {x:500,y:500}; cx/=(6*area); cy/=(6*area); return {x:cx,y:cy};
-  };
-
-  const calcContainBox=()=>{
-    const fr=frame.getBoundingClientRect();
-    const iw=img.naturalWidth||1, ih=img.naturalHeight||1;
-    const fw=fr.width, fh=fr.height;
-    const imgRatio=iw/ih, frameRatio=fw/fh;
-    let w,h,x,y;
-    if(imgRatio>frameRatio){ w=fw; h=fw/imgRatio; x=0; y=(fh-h)/2; }
-    else{ h=fh; w=fh*imgRatio; y=0; x=(fw-w)/2; }
-    Object.assign(svg.style,{left:x+"px", top:y+"px", width:w+"px", height:h+"px", position:"absolute"});
-  };
-
-  const clearSvg=()=>{while(svg.firstChild) svg.removeChild(svg.firstChild);};
-
-  const render=()=>{
-    clearSvg();
-    for(const r of regions){
-      const pts=r.points.map(p=>p.x+","+p.y).join(" ");
-      const poly=document.createElementNS("http://www.w3.org/2000/svg","polygon");
-      poly.setAttribute("points",pts);
-      poly.style.cursor="pointer";
-      if(r.painted){
-        const [R,G,B]=hexToRgb(r.color||"#ff4d6d");
-        poly.setAttribute("fill","rgba("+R+","+G+","+B+","+(r.alpha ?? 0.55)+")");
-      }else poly.setAttribute("fill","rgba(0,0,0,0)");
-      poly.addEventListener("click",(e)=>{e.preventDefault();e.stopPropagation(); onClick(r.id);});
-      svg.appendChild(poly);
-
-      if(r.showNumber && !r.painted){
-        const c=centroid(r.points);
-        const t=document.createElementNS("http://www.w3.org/2000/svg","text");
-        t.setAttribute("x",c.x); t.setAttribute("y",c.y);
-        t.setAttribute("text-anchor","middle");
-        t.setAttribute("dominant-baseline","middle");
-        t.setAttribute("font-size","32");
-        t.setAttribute("font-weight","900");
-        t.setAttribute("fill","rgba(10,16,35,.92)");
-        t.setAttribute("stroke","rgba(255,255,255,.9)");
-        t.setAttribute("stroke-width","4");
-        t.setAttribute("paint-order","stroke");
-        t.textContent=(r.answer||"");
-        svg.appendChild(t);
-      }
-    }
-  };
-
-  const setStatus=(t,s,showPots)=>{stat.querySelector("strong").textContent=t; stat.querySelector("span").textContent=s; pots.classList.toggle("h",!showPots);};
-  const showPot=(ans,color)=>{
-    pots.innerHTML="";
-    const pot=document.createElement("div"); pot.className="pot";
-    const sw=document.createElement("div"); sw.className="paint"; sw.style.background=color; pot.appendChild(sw);
-    const lb=document.createElement("div"); lb.className="lb"; lb.textContent=ans; pot.appendChild(lb);
-    pots.appendChild(pot);
-  };
-
-  const task=()=>tasks[idx] || null;
-
-  const loadTask=()=>{
-    const t=task();
-    if(!t){
-      q.textContent="—";
-      a.value="";
-      setStatus("Вопросы закончились","Добавь задания для оставшихся ответов.",false);
-      paint=null;
-      return;
-    }
-    q.textContent=t.prompt;
-    a.value="";
-    paint=null;
-    setStatus("Пока нет краски","Сначала реши пример.",false);
-  };
-
-  const check=()=>{
-    const t=task(); if(!t) return;
-    const v=(a.value||"").trim();
-    if(!v){ setStatus("Введи ответ","Затем нажми «Проверить».",false); return; }
-    if(v===String(t.answer)){
-      paint={answer:String(t.answer), color:t.color||"#ff4d6d"};
-      setStatus("Краска готова","Нажми на область с ответом "+paint.answer+" (закрасится всё с этим ответом).",true);
-      showPot(paint.answer, paint.color);
-    }else setStatus("Почти!","Попробуй ещё раз.",false);
-  };
-
-  const paintAll=(ans)=>{
-    let any=false;
-    for(const r of regions){
-      if(!r.painted && String(r.answer).trim()===ans){
-        r.painted=true;
-        any=true;
-      }
-    }
-    return any;
-  };
-
-  const onClick=(id)=>{
-    if(!paint) return;
-    const r=regions.find(x=>x.id===id);
-    if(!r) return;
-    if(String(r.answer).trim() !== paint.answer) return;
-
-    if(!paintAll(paint.answer)) return;
     render();
-    paint=null;
-
-    if(regions.every(x=>x.painted)){
-      setStatus("Готово!","Все области раскрашены 🎉",false);
-      return;
-    }
-
-    idx++;
-    loadTask();
   };
 
-  document.getElementById("check").addEventListener("click",check);
-  document.getElementById("next").addEventListener("click",()=>{idx++; loadTask();});
-  a.addEventListener("keydown",(e)=>{if(e.key==="Enter") check();});
-
-  img.onload=()=>{ calcContainBox(); render(); loadTask(); };
-  window.addEventListener("resize", ()=>{ calcContainBox(); });
-
-  img.src=payload.imageSrc;
-})();
-</script>
-</body></html>`;
+  $("svg").onmousedown = (e) => {
+    const rect = $("svg").getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 1000;
+    const y = ((e.clientY - rect.top) / rect.height) * 1000;
+    state.points.push({x, y});
+    render();
   };
 
-  const refreshPreview=()=>{
-    try{
-      const payload=buildPayload();
-      els.gamePreview.srcdoc = buildGameHtml(payload);
-      if(payload._missingAnswers?.length){
-        toast("Нет заданий для ответов: " + payload._missingAnswers.join(", "), "bad");
-      }
-    }catch{}
+  $("btnSaveRegion").onclick = () => {
+    if(state.points.length < 3) return toast("Нужно хотя бы 3 точки!", "bad");
+    const id = "R" + Math.random().toString(16).slice(2);
+    state.regions.push({
+      id,
+      points: [...state.points],
+      answer: $("fldAnswer").value || "?",
+      color: $("fldColor").value
+    });
+    state.points = [];
+    state.selectedId = id;
+    render();
+    toast("Область добавлена");
   };
 
-  const toB64 = (str)=> btoa(unescape(encodeURIComponent(str)));
-
-  const buildEmbedIframe = (gameHtml)=>{
-    const b64 = toB64(gameHtml);
-    const wrapper = `<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;background:transparent;overflow:hidden">
-<iframe id="inner" style="width:100%;height:100vh;border:0;overflow:hidden"></iframe>
-<script>
-const html=decodeURIComponent(escape(atob('${b64}')));
-document.getElementById('inner').srcdoc=html;
-<\\/script>
-</body></html>`;
-
-    const safe = wrapper
-      .replace(/&/g,"&amp;")
-      .replace(/"/g,"&quot;");
-
-    return `<iframe style="width:100%;height:600px;border:0;border-radius:12px;overflow:hidden;"
-sandbox="allow-scripts allow-same-origin allow-forms"
-srcdoc="${safe}"></iframe>`;
+  $("btnApply").onclick = () => {
+    const r = state.regions.find(x => x.id === state.selectedId);
+    if(!r) return;
+    r.answer = $("fldAnswer").value;
+    r.color = $("fldColor").value;
+    render();
+    toast("Обновлено");
   };
 
-  const makeEmbed = ()=>{
-    try{
-      const payload=buildPayload();
-      const gameHtml=buildGameHtml(payload);
-      els.embedOut.value = buildEmbedIframe(gameHtml);
-      toast("Код готов.","ok");
-      if(payload._missingAnswers?.length){
-        toast("Но нет заданий для: " + payload._missingAnswers.join(", "), "bad");
-      }
-    }catch(e){
-      if(e.message==="no-image") toast("Сначала загрузи картинку.","bad");
-      else if(e.message==="no-regions") toast("Нужна минимум 1 область.","bad");
-      else if(e.message==="no-tasks") toast("Нужны задания (строки в списке).","bad");
-      else toast("Не получилось собрать код.","bad");
-    }
+  $("btnDelete").onclick = () => {
+    state.regions = state.regions.filter(r => r.id !== state.selectedId);
+    state.selectedId = null;
+    render();
   };
 
-  const copyEmbed = async ()=>{
-    if(!els.embedOut.value.trim()){ toast("Сначала нажми «Получить код».","bad"); return; }
-    try{
-      await navigator.clipboard.writeText(els.embedOut.value);
-      toast("Скопировано.","ok");
-    }catch{
-      toast("Скопируй вручную.","bad");
-      els.embedOut.focus(); els.embedOut.select();
+  $("btnUndo").onclick = () => { state.points.pop(); render(); };
+  $("btnClear").onclick = () => { state.points = []; render(); };
+
+  $("btnLoad").onclick = () => {
+    const file = $("filePick").files[0];
+    if(file) {
+      state.imageSrc = URL.createObjectURL(file);
+    } else {
+      state.imageSrc = $("imgUrl").value || state.imageSrc;
     }
+    $("img").src = state.imageSrc;
+    toast("Изображение обновлено");
   };
 
-  // wire
-  els.svg.addEventListener("click", addPoint);
+  // Генератор HTML для Genially
+  const buildGameHtml = () => {
+    const tasks = $("tasksText").value.split("\n").map(l => {
+      const [p, a, c] = l.split("|").map(s => s.trim());
+      return { prompt: p, answer: a, color: c || "#28d7a7" };
+    });
 
-  els.btnUndo.addEventListener("click", undoPoint);
-  els.btnClear.addEventListener("click", ()=>{clearPoints(); toast("Точки очищены.","ok");});
-  els.btnNew.addEventListener("click", newOutline);
-  els.btnSaveRegion.addEventListener("click", saveRegion);
+    const config = {
+      image: state.imageSrc,
+      regions: state.regions,
+      tasks: tasks
+    };
 
-  els.btnDelete.addEventListener("click", deleteSelected);
-  els.btnDuplicate.addEventListener("click", duplicateSelected);
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { margin: 0; font-family: sans-serif; background: #0b1020; color: #fff; overflow: hidden; height: 100vh; display: flex; }
+        .ui { width: 300px; padding: 20px; border-right: 1px solid #333; }
+        .game { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; }
+        .frame { width: 90%; aspect-ratio: 16/9; position: relative; }
+        img { width: 100%; height: 100%; object-fit: contain; }
+        svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+        input { width: 100%; padding: 10px; border-radius: 8px; border: none; margin: 10px 0; }
+        button { width: 100%; padding: 10px; background: #28d7a7; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .task { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="ui">
+        <div class="task" id="taskDisp"></div>
+        <input type="text" id="ansInp" placeholder="Твой ответ...">
+        <button onclick="check()">Проверить</button>
+        <p id="msg"></p>
+    </div>
+    <div class="game">
+        <div class="frame">
+            <img src="${config.image}">
+            <svg id="gameSvg" viewBox="0 0 1000 1000" preserveAspectRatio="none"></svg>
+        </div>
+    </div>
+    <script>
+        const config = ${JSON.stringify(config)};
+        let currentTaskIdx = 0;
+        let solvedAnswers = new Set();
 
-  els.btnApply.addEventListener("click", applyFields);
-  els.btnShow.addEventListener("click", showSelectedPreview);
+        function render() {
+            const svg = document.getElementById("gameSvg");
+            svg.innerHTML = "";
+            config.regions.forEach(r => {
+                const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+                poly.setAttribute("points", r.points.map(p => p.x + "," + p.y).join(" "));
+                poly.setAttribute("fill", solvedAnswers.has(r.answer) ? r.color : "transparent");
+                poly.setAttribute("stroke", "rgba(255,255,255,0.2)");
+                svg.appendChild(poly);
+            });
+            document.getElementById("taskDisp").textContent = config.tasks[currentTaskIdx].prompt;
+        }
 
-  els.btnLoad.addEventListener("click", ()=>{ loadImage().catch(()=>toast("Не удалось загрузить изображение.","bad")); });
-  els.btnFit.addEventListener("click", fit);
+        function check() {
+            const val = document.getElementById("ansInp").value.trim();
+            const correct = config.tasks[currentTaskIdx].answer;
+            if(val == correct) {
+                solvedAnswers.add(correct);
+                document.getElementById("msg").textContent = "Верно!";
+                document.getElementById("ansInp").value = "";
+                if(currentTaskIdx < config.tasks.length - 1) currentTaskIdx++;
+                render();
+            } else {
+                document.getElementById("msg").textContent = "Попробуй еще раз";
+            }
+        }
+        render();
+    <\/script>
+</body>
+</html>`;
+  };
 
-  els.btnRefreshPreview.addEventListener("click", ()=>{ refreshPreview(); toast("Предпросмотр обновлён.","ok"); });
-  els.btnMakeEmbed.addEventListener("click", makeEmbed);
-  els.btnCopyEmbed.addEventListener("click", copyEmbed);
+  $("btnMakeEmbed").onclick = () => {
+    const html = buildGameHtml();
+    $("embedOut").value = html;
+    const blob = new Blob([html], {type: 'text/html'});
+    $("gamePreview").src = URL.createObjectURL(blob);
+    toast("Код готов и загружен в предпросмотр");
+  };
 
-  els.preset.addEventListener("change", ()=>{
-    const v=els.preset.value;
-    if(v!=="__custom__"){
-      els.imgUrl.value=v;
-      els.filePick.value="";
-      loadImage().catch(()=>{});
-    }
-  });
+  $("btnCopyEmbed").onclick = () => {
+    $("embedOut").select();
+    document.execCommand("copy");
+    toast("Скопировано!");
+  };
 
-  // КЛЮЧЕВОЕ: файл выбран → сразу запускаем загрузку
-  els.filePick.addEventListener("change", ()=>{
-    if(els.filePick.files && els.filePick.files[0]){
-      els.preset.value="__custom__";
-      els.imgUrl.value="";
-      loadImage().catch(()=>toast("Не удалось загрузить файл. Открой в Chrome/Safari.","bad"));
-    }
-  });
-
-  // Enter в ссылке
-  els.imgUrl.addEventListener("keydown", (e)=>{
-    if(e.key==="Enter"){
-      e.preventDefault();
-      els.preset.value="__custom__";
-      els.filePick.value="";
-      loadImage().catch(()=>{});
-    }
-  });
-
-  els.fldColor.addEventListener("input", ()=>{ els.fldColorHex.value=els.fldColor.value; });
-  els.fldColorHex.addEventListener("input", ()=>{
-    const x=hexNormalize(els.fldColorHex.value);
-    if(x){ els.fldColorHex.value=x; els.fldColor.value=x; }
-  });
-
-  // init
-  els.tasksText.value = defaultTasks;
-  els.imgUrl.value = DEFAULT_URL;
-
-  renderList();
-  renderOverlay();
-
-  loadImage().catch(()=>{});
-  window.addEventListener("resize", ()=>{ if(state.imgLoaded) calcContainBox(); });
-
+  render();
 })();
 </script>
 </body>
